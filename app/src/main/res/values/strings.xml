@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voice Recorder</string>
+    
+    <!-- Recording Status -->
+    <string name="status_recording">Recording...</string>
+    <string name="status_paused_phone_call">Paused - Phone call</string>
+    <string name="status_paused_audio_focus">Paused - Audio focus lost</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_no_audio">No audio detected - Check microphone</string>
+    <string name="status_low_storage">Recording stopped - Low storage</string>
+    
+    <!-- Notification -->
+    <string name="notification_channel_name">Recording Service</string>
+    <string name="notification_channel_description">Shows recording status and controls</string>
+    <string name="notification_title_recording">Recording in progress</string>
+    <string name="notification_action_pause">Pause</string>
+    <string name="notification_action_resume">Resume</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_headset_changed">Audio source changed</string>
+    
+    <!-- UI Labels -->
+    <string name="dashboard_title">Meetings</string>
+    <string name="recording_title">Recording</string>
+    <string name="summary_title">Summary</string>
+    <string name="settings_title">Settings</string>
+    <string name="btn_start_recording">Start Recording</string>
+    <string name="btn_stop_recording">Stop Recording</string>
+    <string name="btn_pause_recording">Pause</string>
+    <string name="btn_resume_recording">Resume</string>
+    <string name="timer_format">%02d:%02d</string>
+    <string name="chunks_title">Audio Chunks</string>
+    
+    <!-- Summary Sections -->
+    <string name="summary_section_title">Title</string>
+    <string name="summary_section_summary">Summary</string>
+    <string name="summary_section_action_items">Action Items</string>
+    <string name="summary_section_key_points">Key Points</string>
+    <string name="summary_generating">Generating summary...</string>
+    <string name="summary_error">Error generating summary</string>
+    <string name="btn_retry">Retry</string>
+    
+    <!-- Settings -->
+    <string name="settings_api_provider">API Provider</string>
+    <string name="settings_provider_mock">Mock (Default)</string>
+    <string name="settings_provider_openai">OpenAI Whisper</string>
+    <string name="settings_provider_gemini">Google Gemini</string>
+    <string name="settings_api_key">API Key</string>
+    <string name="settings_api_key_hint">Enter your API key</string>
+    <string name="settings_api_key_note">API key will be used when real provider is selected</string>
+    
+    <!-- Permissions -->
+    <string name="permission_microphone_rationale">Microphone permission is required to record audio</string>
+    <string name="permission_notification_rationale">Notification permission is required to show recording status</string>
+    <string name="permission_phone_rationale">Phone state permission is required to pause recording during calls</string>
+    
+    <!-- Errors -->
+    <string name="error_generic">An error occurred</string>
+    <string name="error_no_permission">Required permissions not granted</string>
+    <string name="error_recording_failed">Recording failed to start</string>
+</resources>
