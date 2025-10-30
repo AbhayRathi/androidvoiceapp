@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voice Recorder</string>
+    <string name="recording_notification_channel_name">Recording Service</string>
+    <string name="recording_notification_channel_desc">Shows ongoing recording status</string>
+    <string name="recording_notification_title">Recording in progress</string>
+    <string name="recording">Recording</string>
+    <string name="paused">Paused</string>
+    <string name="stopped">Stopped</string>
+    <string name="paused_phone_call">Paused - Phone call</string>
+    <string name="paused_audio_focus">Paused - Audio focus lost</string>
+    <string name="no_audio_detected">No audio detected - Check microphone</string>
+    <string name="recording_stopped_low_storage">Recording stopped - Low storage</string>
+    <string name="headset_changed">Audio source changed</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="dashboard_title">Meetings</string>
+    <string name="start_recording">Start Recording</string>
+    <string name="stop_recording">Stop Recording</string>
+    <string name="pause_recording">Pause</string>
+    <string name="resume_recording">Resume</string>
+    <string name="meeting_title">Meeting</string>
+    <string name="chunks_title">Chunks</string>
+    <string name="transcript_title">Transcript</string>
+    <string name="summary_title">Summary</string>
+    <string name="action_items_title">Action Items</string>
+    <string name="key_points_title">Key Points</string>
+    <string name="generating_summary">Generating summary...</string>
+    <string name="retry">Retry</string>
+    <string name="settings_title">Settings</string>
+    <string name="api_provider_title">API Provider</string>
+    <string name="api_key_title">API Key</string>
+    <string name="mock_provider">Mock (Default)</string>
+    <string name="real_provider">Real API</string>
+    <string name="save">Save</string>
+</resources>
