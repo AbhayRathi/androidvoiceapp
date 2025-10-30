@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voice Recorder</string>
+    
+    <!-- Recording Service -->
+    <string name="notification_channel_recording_id">recording_channel</string>
+    <string name="notification_channel_recording_name">Recording Service</string>
+    <string name="notification_channel_recording_desc">Shows recording status and controls</string>
+    
+    <string name="notification_title_recording">Recording in progress</string>
+    <string name="notification_title_paused">Recording paused</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_action_pause">Pause</string>
+    <string name="notification_action_resume">Resume</string>
+    
+    <!-- Recording Status -->
+    <string name="status_recording">Recording…</string>
+    <string name="status_paused_phone_call">Paused - Phone call</string>
+    <string name="status_paused_audio_focus">Paused - Audio focus lost</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_no_audio">No audio detected - Check microphone</string>
+    <string name="status_low_storage">Recording stopped - Low storage</string>
+    <string name="status_headset_changed">Audio source changed</string>
+    
+    <!-- Dashboard -->
+    <string name="dashboard_title">Meetings</string>
+    <string name="dashboard_empty">No meetings yet</string>
+    <string name="dashboard_start_recording">Start Recording</string>
+    
+    <!-- Recording Screen -->
+    <string name="recording_title">Recording</string>
+    <string name="recording_button_start">Start Recording</string>
+    <string name="recording_button_stop">Stop Recording</string>
+    <string name="recording_button_pause">Pause</string>
+    <string name="recording_button_resume">Resume</string>
+    <string name="recording_chunks_title">Audio Chunks</string>
+    
+    <!-- Summary Screen -->
+    <string name="summary_title">Summary</string>
+    <string name="summary_section_title">Title</string>
+    <string name="summary_section_summary">Summary</string>
+    <string name="summary_section_action_items">Action Items</string>
+    <string name="summary_section_key_points">Key Points</string>
+    <string name="summary_generating">Generating summary…</string>
+    <string name="summary_error">Failed to generate summary</string>
+    <string name="summary_retry">Retry</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_provider">Transcription Provider</string>
+    <string name="settings_provider_mock">Mock (Default)</string>
+    <string name="settings_provider_openai">OpenAI Whisper</string>
+    <string name="settings_provider_gemini">Google Gemini</string>
+    <string name="settings_api_key">API Key</string>
+    <string name="settings_api_key_hint">Enter API key for real provider</string>
+    <string name="settings_save">Save</string>
+    
+    <!-- Permissions -->
+    <string name="permission_audio_rationale">Microphone permission is required to record audio</string>
+    <string name="permission_notification_rationale">Notification permission is required to show recording status</string>
+    <string name="permission_phone_rationale">Phone state permission helps pause recording during calls</string>
+    
+    <!-- Errors -->
+    <string name="error_storage_low">Storage space is too low to start recording</string>
+    <string name="error_permission_denied">Required permissions not granted</string>
+    <string name="error_recording_failed">Recording failed to start</string>
+    <string name="error_transcription_failed">Transcription failed</string>
