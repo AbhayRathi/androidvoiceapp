@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
-import com.androidvoiceapp.api.mock.MockSummaryApi
+import com.androidvoiceapp.api.SummaryApi
 import com.androidvoiceapp.data.repository.MeetingRepository
 import com.androidvoiceapp.data.repository.SummaryRepository
 import com.androidvoiceapp.data.repository.TranscriptRepository
@@ -27,7 +27,7 @@ class SummaryWorker @AssistedInject constructor(
     private val summaryRepository: SummaryRepository,
     private val transcriptRepository: TranscriptRepository,
     private val meetingRepository: MeetingRepository,
-    private val mockSummaryApi: MockSummaryApi
+    private val summaryApi: SummaryApi
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -49,25 +49,29 @@ class SummaryWorker @AssistedInject constructor(
         }
 
         return try {
-            Log.d(TAG, "Starting summary generation for meeting $meetingId")
+            Log.d(TAG, "Starting summary generation: meetingId=$meetingId, workerId=$id")
 
             // Create or get existing summary
             var summary = summaryRepository.getSummaryByMeetingIdOnce(meetingId)
             if (summary == null) {
+                Log.d(TAG, "Creating new summary entity: meetingId=$meetingId")
                 summary = SummaryEntity(
                     meetingId = meetingId,
                     status = "generating"
                 )
                 summaryRepository.createOrUpdateSummary(summary)
             } else {
+                Log.d(TAG, "Using existing summary: meetingId=$meetingId, status=${summary.status}")
                 // Update status to generating
                 summaryRepository.updateSummaryStatus(meetingId, "generating")
             }
 
             // Get all transcript segments
             val segmentCount = transcriptRepository.getSegmentCount(meetingId)
+            Log.d(TAG, "Transcript segment count: meetingId=$meetingId, count=$segmentCount")
+            
             if (segmentCount == 0) {
-                Log.w(TAG, "No transcript segments found for meeting $meetingId")
+                Log.w(TAG, "No transcript segments found: meetingId=$meetingId")
                 summaryRepository.updateSummaryStatus(
                     meetingId,
                     "failed",
@@ -79,11 +83,12 @@ class SummaryWorker @AssistedInject constructor(
             // Build full transcript text (in real implementation, would stream from DB)
             // For now, use a placeholder since we're using mock API anyway
             val transcriptText = "Full meeting transcript text here"
+            Log.d(TAG, "Starting streaming summary generation: meetingId=$meetingId")
 
             // Stream summary generation
-            mockSummaryApi.generateSummaryStream(transcriptText)
+            summaryApi.generateSummaryStream(transcriptText)
                 .catch { e ->
-                    Log.e(TAG, "Error in summary stream", e)
+                    Log.e(TAG, "Error in summary stream: meetingId=$meetingId, error=${e.message}", e)
                     summaryRepository.updateSummaryStatus(
                         meetingId,
                         "failed",
@@ -91,7 +96,7 @@ class SummaryWorker @AssistedInject constructor(
                     )
                 }
                 .collect { update ->
-                    Log.d(TAG, "Summary progress: ${update.progress * 100}%")
+                    Log.d(TAG, "Summary update received: meetingId=$meetingId, progress=${(update.progress * 100).toInt()}%, isComplete=${update.isComplete}")
                     
                     // Convert lists to JSON strings
                     val actionItemsJson = json.encodeToString(update.actionItems)
@@ -111,14 +116,15 @@ class SummaryWorker @AssistedInject constructor(
                     if (update.isComplete) {
                         // Update meeting status
                         meetingRepository.updateMeetingStatus(meetingId, "completed")
-                        Log.d(TAG, "Summary generation completed for meeting $meetingId")
+                        Log.d(TAG, "Summary generation completed: meetingId=$meetingId")
                     }
                 }
 
+            Log.d(TAG, "Summary worker completed successfully: meetingId=$meetingId")
             Result.success()
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to generate summary for meeting $meetingId", e)
+            Log.e(TAG, "Failed to generate summary: meetingId=$meetingId, error=${e.message}", e)
             summaryRepository.updateSummaryStatus(
                 meetingId,
                 "failed",

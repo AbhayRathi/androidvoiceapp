@@ -9,14 +9,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.androidvoiceapp.ui.viewmodels.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    var selectedProvider by remember { mutableStateOf("Mock") }
-    var apiKey by remember { mutableStateOf("") }
+    val selectedProvider by viewModel.selectedProvider.collectAsState()
+    val apiKey by viewModel.apiKey.collectAsState()
+    val saveSuccess by viewModel.saveSuccess.collectAsState()
+    
+    // Show snackbar on save success
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    LaunchedEffect(saveSuccess) {
+        if (saveSuccess) {
+            snackbarHostState.showSnackbar("Settings saved successfully")
+            viewModel.resetSaveSuccess()
+        }
+    }
     
     Scaffold(
         topBar = {
@@ -28,7 +42,8 @@ fun SettingsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -50,7 +65,7 @@ fun SettingsScreen(
                     title = "Mock (Default)",
                     description = "Uses mock APIs for testing",
                     selected = selectedProvider == "Mock",
-                    onClick = { selectedProvider = "Mock" }
+                    onClick = { viewModel.updateProvider("Mock") }
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -59,7 +74,7 @@ fun SettingsScreen(
                     title = "OpenAI Whisper",
                     description = "Real transcription using OpenAI",
                     selected = selectedProvider == "OpenAI",
-                    onClick = { selectedProvider = "OpenAI" }
+                    onClick = { viewModel.updateProvider("OpenAI") }
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -68,7 +83,7 @@ fun SettingsScreen(
                     title = "Google Gemini",
                     description = "Real transcription using Google Gemini",
                     selected = selectedProvider == "Gemini",
-                    onClick = { selectedProvider = "Gemini" }
+                    onClick = { viewModel.updateProvider("Gemini") }
                 )
             }
             
@@ -84,16 +99,21 @@ fun SettingsScreen(
             
             OutlinedTextField(
                 value = apiKey,
-                onValueChange = { apiKey = it },
+                onValueChange = { viewModel.updateApiKey(it) },
                 label = { Text("Enter your API key") },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = selectedProvider != "Mock"
+                enabled = selectedProvider != "Mock",
+                supportingText = {
+                    if (selectedProvider != "Mock" && apiKey.isEmpty()) {
+                        Text("API key is required for real providers")
+                    }
+                }
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "API key will be used when real provider is selected. For now, the app uses mock providers by default.",
+                text = "API keys are securely encrypted and stored on device. They are never transmitted except to the selected API provider.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -102,10 +122,10 @@ fun SettingsScreen(
             
             Button(
                 onClick = {
-                    // TODO: Save settings
-                    onNavigateBack()
+                    viewModel.saveSettings()
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = selectedProvider == "Mock" || apiKey.isNotEmpty()
             ) {
                 Text("Save Settings")
             }

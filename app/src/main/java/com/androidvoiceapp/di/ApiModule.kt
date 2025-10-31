@@ -1,28 +1,31 @@
 package com.androidvoiceapp.di
 
-import android.content.Context
+import com.androidvoiceapp.api.SummaryApi
+import com.androidvoiceapp.api.TranscriptionApi
 import com.androidvoiceapp.api.mock.MockSummaryApi
 import com.androidvoiceapp.api.mock.MockTranscriptionApi
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * Debug/Mock module that provides Mock API implementations by default
+ * This ensures mock providers are always available for testing
+ */
 @Module
 @InstallIn(SingletonComponent::class)
-object ApiModule {
+abstract class DebugApiModule {
     
-    @Provides
+    @Binds
     @Singleton
-    fun provideMockTranscriptionApi(@ApplicationContext context: Context): MockTranscriptionApi {
-        return MockTranscriptionApi()
-    }
+    @MockApi
+    abstract fun bindMockTranscriptionApi(impl: MockTranscriptionApi): TranscriptionApi
     
-    @Provides
+    @Binds
     @Singleton
-    fun provideMockSummaryApi(): MockSummaryApi {
-        return MockSummaryApi()
-    }
+    @MockApi
+    abstract fun bindMockSummaryApi(impl: MockSummaryApi): SummaryApi
 }
+

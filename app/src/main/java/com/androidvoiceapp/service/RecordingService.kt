@@ -53,6 +53,11 @@ class RecordingService : Service() {
         private const val CHUNK_DURATION_MS = 30000L // 30 seconds
         private const val OVERLAP_DURATION_MS = 2000L // 2 seconds
         private const val SAMPLE_RATE = 16000
+        
+        // Unique request codes for PendingIntents to ensure they don't conflict
+        private const val REQUEST_CODE_PAUSE = 1001
+        private const val REQUEST_CODE_RESUME = 1002
+        private const val REQUEST_CODE_STOP = 1003
     }
 
     @Inject
@@ -465,18 +470,20 @@ class RecordingService : Service() {
         if (isPaused) {
             val resumeIntent = Intent(this, RecordingService::class.java).apply {
                 action = ACTION_RESUME
+                putExtra(EXTRA_MEETING_ID, meetingId)
             }
             val resumePendingIntent = PendingIntent.getService(
-                this, 0, resumeIntent,
+                this, REQUEST_CODE_RESUME, resumeIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             builder.addAction(0, getString(R.string.notification_action_resume), resumePendingIntent)
         } else if (isRecording) {
             val pauseIntent = Intent(this, RecordingService::class.java).apply {
                 action = ACTION_PAUSE
+                putExtra(EXTRA_MEETING_ID, meetingId)
             }
             val pausePendingIntent = PendingIntent.getService(
-                this, 0, pauseIntent,
+                this, REQUEST_CODE_PAUSE, pauseIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             builder.addAction(0, getString(R.string.notification_action_pause), pausePendingIntent)
@@ -484,9 +491,10 @@ class RecordingService : Service() {
 
         val stopIntent = Intent(this, RecordingService::class.java).apply {
             action = ACTION_STOP
+            putExtra(EXTRA_MEETING_ID, meetingId)
         }
         val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent,
+            this, REQUEST_CODE_STOP, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         builder.addAction(0, getString(R.string.notification_action_stop), stopPendingIntent)

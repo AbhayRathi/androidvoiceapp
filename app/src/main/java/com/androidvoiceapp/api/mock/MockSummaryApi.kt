@@ -1,6 +1,7 @@
 package com.androidvoiceapp.api.mock
 
 import android.util.Log
+import com.androidvoiceapp.api.SummaryApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -11,41 +12,27 @@ import javax.inject.Singleton
  * Mock summary API that streams summary generation
  */
 @Singleton
-class MockSummaryApi @Inject constructor() {
+class MockSummaryApi @Inject constructor() : SummaryApi {
     
     companion object {
         private const val TAG = "MockSummaryApi"
     }
     
-    data class SummaryUpdate(
-        val title: String = "",
-        val summary: String = "",
-        val actionItems: List<String> = emptyList(),
-        val keyPoints: List<String> = emptyList(),
-        val progress: Float = 0f,
-        val isComplete: Boolean = false
-    )
-    
-    /**
-     * Generate summary with streaming updates
-     * @param transcript The full transcript text
-     * @return Flow of incremental summary updates
-     */
-    fun generateSummaryStream(transcript: String): Flow<SummaryUpdate> = flow {
+    override fun generateSummaryStream(transcript: String): Flow<SummaryApi.SummaryUpdate> = flow {
         Log.d(TAG, "Starting summary generation (mock streaming)")
         
         // Simulate streaming by emitting progressive updates
         
         // Step 1: Title (10% progress)
         delay(1000)
-        emit(SummaryUpdate(
+        emit(SummaryApi.SummaryUpdate(
             title = "Meeting Discussion Summary",
             progress = 0.1f
         ))
         
         // Step 2: Summary part 1 (30% progress)
         delay(1500)
-        emit(SummaryUpdate(
+        emit(SummaryApi.SummaryUpdate(
             title = "Meeting Discussion Summary",
             summary = "This meeting covered important topics including project timeline, technical architecture, and implementation approach.",
             progress = 0.3f
@@ -53,7 +40,7 @@ class MockSummaryApi @Inject constructor() {
         
         // Step 3: Summary complete (50% progress)
         delay(1500)
-        emit(SummaryUpdate(
+        emit(SummaryApi.SummaryUpdate(
             title = "Meeting Discussion Summary",
             summary = "This meeting covered important topics including project timeline, technical architecture, and implementation approach. The team discussed key milestones, quality assurance processes, and next steps for the project.",
             progress = 0.5f
@@ -61,7 +48,7 @@ class MockSummaryApi @Inject constructor() {
         
         // Step 4: Action items (70% progress)
         delay(1500)
-        emit(SummaryUpdate(
+        emit(SummaryApi.SummaryUpdate(
             title = "Meeting Discussion Summary",
             summary = "This meeting covered important topics including project timeline, technical architecture, and implementation approach. The team discussed key milestones, quality assurance processes, and next steps for the project.",
             actionItems = listOf(
@@ -74,7 +61,7 @@ class MockSummaryApi @Inject constructor() {
         
         // Step 5: Key points (90% progress)
         delay(1500)
-        emit(SummaryUpdate(
+        emit(SummaryApi.SummaryUpdate(
             title = "Meeting Discussion Summary",
             summary = "This meeting covered important topics including project timeline, technical architecture, and implementation approach. The team discussed key milestones, quality assurance processes, and next steps for the project.",
             actionItems = listOf(
@@ -93,7 +80,7 @@ class MockSummaryApi @Inject constructor() {
         
         // Step 6: Complete (100% progress)
         delay(1000)
-        emit(SummaryUpdate(
+        emit(SummaryApi.SummaryUpdate(
             title = "Meeting Discussion Summary",
             summary = "This meeting covered important topics including project timeline, technical architecture, and implementation approach. The team discussed key milestones, quality assurance processes, and next steps for the project.",
             actionItems = listOf(
@@ -114,8 +101,5 @@ class MockSummaryApi @Inject constructor() {
         Log.d(TAG, "Summary generation complete")
     }
     
-    /**
-     * Check if summary API is available (always true for mock)
-     */
-    fun isAvailable(): Boolean = true
+    override fun isAvailable(): Boolean = true
 }
