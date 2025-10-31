@@ -11,15 +11,9 @@ import com.androidvoiceapp.data.repository.TranscriptRepository
 import com.androidvoiceapp.data.room.SummaryEntity
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
-import kotlinx.serialization.encodeToString
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 
-/**
- * Worker to generate meeting summaries with streaming updates
- * Runs as foreground work to survive app kill
- */
 @HiltWorker
 class SummaryWorker @AssistedInject constructor(
     @Assisted context: Context,
@@ -62,15 +56,12 @@ class SummaryWorker @AssistedInject constructor(
                 summaryRepository.createOrUpdateSummary(summary)
             } else {
                 Log.d(TAG, "Using existing summary: meetingId=$meetingId, status=${summary.status}")
-                // Update status to generating
                 summaryRepository.updateSummaryStatus(meetingId, "generating")
             }
 
             // Get all transcript segments
-            val segmentCount = transcriptRepository.getSegmentCount(meetingId)
-            Log.d(TAG, "Transcript segment count: meetingId=$meetingId, count=$segmentCount")
-            
-            if (segmentCount == 0) {
+            val segments = transcriptRepository.getSegmentsByMeetingId(meetingId).first()
+            if (segments.isEmpty()) {
                 Log.w(TAG, "No transcript segments found: meetingId=$meetingId")
                 summaryRepository.updateSummaryStatus(
                     meetingId,
@@ -80,45 +71,39 @@ class SummaryWorker @AssistedInject constructor(
                 return Result.failure()
             }
 
-            // Build full transcript text (in real implementation, would stream from DB)
-            // For now, use a placeholder since we're using mock API anyway
-            val transcriptText = "Full meeting transcript text here"
+            // Build full transcript text
+            val transcriptText = segments.joinToString("\n") { it.text }
             Log.d(TAG, "Starting streaming summary generation: meetingId=$meetingId")
 
             // Stream summary generation
-            summaryApi.generateSummaryStream(transcriptText)
-                .catch { e ->
-                    Log.e(TAG, "Error in summary stream: meetingId=$meetingId, error=${e.message}", e)
-                    summaryRepository.updateSummaryStatus(
-                        meetingId,
-                        "failed",
-                        e.message
-                    )
-                }
-                .collect { update ->
-                    Log.d(TAG, "Summary update received: meetingId=$meetingId, progress=${(update.progress * 100).toInt()}%, isComplete=${update.isComplete}")
-                    
-                    // Convert lists to JSON strings
-                    val actionItemsJson = json.encodeToString(update.actionItems)
-                    val keyPointsJson = json.encodeToString(update.keyPoints)
-                    
-                    // Update database with streaming progress
-                    summaryRepository.updateSummaryContent(
-                        meetingId = meetingId,
-                        title = update.title,
-                        summary = update.summary,
-                        actionItems = actionItemsJson,
-                        keyPoints = keyPointsJson,
-                        progress = update.progress,
-                        status = if (update.isComplete) "completed" else "generating"
-                    )
+            var fullSummary = ""
+            summaryApi.generateSummary(transcriptText).collect {
+                fullSummary += it.text
+                // For now, just save the full text as it comes in.
+                // A more advanced implementation would parse the structured data.
+                summaryRepository.updateSummaryContent(
+                    meetingId = meetingId,
+                    title = "", // Extracted from fullSummary later
+                    summary = fullSummary,
+                    actionItems = "", // Extracted from fullSummary later
+                    keyPoints = "", // Extracted from fullSummary later
+                    progress = 0.5f, // Placeholder progress
+                    status = "generating"
+                )
+            }
 
-                    if (update.isComplete) {
-                        // Update meeting status
-                        meetingRepository.updateMeetingStatus(meetingId, "completed")
-                        Log.d(TAG, "Summary generation completed: meetingId=$meetingId")
-                    }
-                }
+            // Once the flow is complete, parse the full summary
+            val parsedSummary = parseSummary(fullSummary)
+            summaryRepository.updateSummaryContent(
+                meetingId = meetingId,
+                title = parsedSummary.title,
+                summary = parsedSummary.summary,
+                actionItems = json.encodeToString(parsedSummary.actionItems),
+                keyPoints = json.encodeToString(parsedSummary.keyPoints),
+                progress = 1.0f,
+                status = "completed"
+            )
+            meetingRepository.updateMeetingStatus(meetingId, "completed")
 
             Log.d(TAG, "Summary worker completed successfully: meetingId=$meetingId")
             Result.success()
@@ -134,6 +119,20 @@ class SummaryWorker @AssistedInject constructor(
         }
     }
 
+    private fun parseSummary(fullText: String): ParsedSummary {
+        val title = fullText.substringAfter("Title:", "").substringBefore("\n").trim()
+        val summary = fullText.substringAfter("Summary:", "").substringBefore("Action Items:").trim()
+        val actionItemsText = fullText.substringAfter("Action Items:", "").substringBefore("Key Points:").trim()
+        val keyPointsText = fullText.substringAfter("Key Points:", "").trim()
+
+        val actionItems = actionItemsText.lines().filter { it.isNotBlank() }.map { it.trim().removePrefix("*").trim() }
+        val keyPoints = keyPointsText.lines().filter { it.isNotBlank() }.map { it.trim().removePrefix("*").trim() }
+
+        return ParsedSummary(title, summary, actionItems, keyPoints)
+    }
+
+    data class ParsedSummary(val title: String, val summary: String, val actionItems: List<String>, val keyPoints: List<String>)
+
     override suspend fun getForegroundInfo(): ForegroundInfo {
         return ForegroundInfo(
             NOTIFICATION_ID,
@@ -144,7 +143,6 @@ class SummaryWorker @AssistedInject constructor(
     private fun createNotification(): android.app.Notification {
         val channelId = "summary_channel"
         
-        // Create notification channel for API 26+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 channelId,

@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
-import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
@@ -510,33 +509,31 @@ class RecordingService : Service() {
 
     private fun setupPhoneStateListener() {
         telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_PHONE_STATE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_PHONE_STATE
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
-                    override fun onCallStateChanged(state: Int) {
-                        handlePhoneStateChange(state)
-                    }
+            val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                override fun onCallStateChanged(state: Int) {
+                    handlePhoneStateChange(state)
                 }
-                phoneStateListener = callback
-                telephonyManager?.registerTelephonyCallback(
-                    mainExecutor,
-                    callback
-                )
             }
+            phoneStateListener = callback
+            telephonyManager?.registerTelephonyCallback(mainExecutor, callback)
         } else {
             @Suppress("DEPRECATION")
             val listener = object : PhoneStateListener() {
+                @Deprecated("Deprecated in Java")
                 override fun onCallStateChanged(state: Int, phoneNumber: String?) {
                     handlePhoneStateChange(state)
                 }
             }
             phoneStateListener = listener
-            @Suppress("DEPRECATION")
             telephonyManager?.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
         }
     }

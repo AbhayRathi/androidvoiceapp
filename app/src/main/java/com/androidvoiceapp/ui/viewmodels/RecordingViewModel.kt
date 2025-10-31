@@ -9,10 +9,12 @@ import com.androidvoiceapp.data.room.ChunkEntity
 import com.androidvoiceapp.data.room.MeetingEntity
 import com.androidvoiceapp.data.room.SessionStateEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
     private val meetingRepository: MeetingRepository,

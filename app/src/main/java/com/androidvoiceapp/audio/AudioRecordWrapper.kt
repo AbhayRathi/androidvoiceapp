@@ -1,5 +1,6 @@
 package com.androidvoiceapp.audio
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -21,6 +22,7 @@ class AudioRecordWrapper(
     private var audioRecord: AudioRecord? = null
     private val bufferSize: Int = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
     
+    @SuppressLint("MissingPermission")
     fun start(): Boolean {
         return try {
             if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {

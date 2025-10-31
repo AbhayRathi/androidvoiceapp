@@ -19,7 +19,6 @@ class ChunkOverlapTest {
     @Test
     fun `test first chunk has no overlap at start`() {
         // First chunk should start at 0 with no overlap before it
-        val chunkSequence = 0
         val chunkStartTime = 0L
         val chunkDuration = CHUNK_DURATION_MS
         val chunkEndTime = chunkStartTime + chunkDuration

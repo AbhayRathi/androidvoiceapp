@@ -7,6 +7,9 @@ import org.junit.Test
  * Tests for TranscriptionWorker retry logic and semantics
  * These tests document the expected retry behavior
  */
+
+enum class WorkPolicy { KEEP, REPLACE, APPEND }
+
 class TranscriptionWorkerRetryTest {
     
     companion object {
@@ -179,8 +182,6 @@ class TranscriptionWorkerRetryTest {
     @Test
     fun `test ExistingWorkPolicy REPLACE ensures latest work runs`() {
         // When retry-all is triggered, ExistingWorkPolicy.REPLACE should be used
-        enum class WorkPolicy { KEEP, REPLACE, APPEND }
-        
         val retryAllPolicy = WorkPolicy.REPLACE
         val normalEnqueuePolicy = WorkPolicy.KEEP
         

@@ -146,11 +146,14 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "To use real API providers:\n\n" +
-                                "1. Select your preferred provider above\n" +
-                                "2. Enter your API key\n" +
-                                "3. Save settings\n" +
-                                "4. The app will use real APIs for transcription and summary generation",
+                        text = """
+                            To use real API providers:
+
+                            1. Select your preferred provider above
+                            2. Enter your API key
+                            3. Save settings
+                            4. The app will use real APIs for transcription and summary generation
+                        """.trimIndent(),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -159,6 +162,7 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderOption(
     title: String,

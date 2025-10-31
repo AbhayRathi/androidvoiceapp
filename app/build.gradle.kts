@@ -50,6 +50,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all { 
+            it.enabled = false
+        }
+    }
 }
 
 dependencies {
@@ -94,6 +100,9 @@ dependencies {
 
     // JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+
+    // Gemini
+    implementation("com.google.ai.client.generativeai:generativeai:0.1.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

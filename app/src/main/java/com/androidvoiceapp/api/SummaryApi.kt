@@ -3,27 +3,19 @@ package com.androidvoiceapp.api
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Interface for summary API implementations
+ * Represents a partial summary update during streaming.
+ */
+data class SummaryUpdate(val text: String, val isDone: Boolean)
+
+/**
+ * Interface for summary generation APIs.
  */
 interface SummaryApi {
-    data class SummaryUpdate(
-        val title: String = "",
-        val summary: String = "",
-        val actionItems: List<String> = emptyList(),
-        val keyPoints: List<String> = emptyList(),
-        val progress: Float = 0f,
-        val isComplete: Boolean = false
-    )
-    
     /**
-     * Generate summary with streaming updates
-     * @param transcript The full transcript text
-     * @return Flow of incremental summary updates
+     * Generate a structured summary from a full transcript.
+     *
+     * @param transcript The complete transcript of the meeting.
+     * @return A Flow that emits partial summary updates as they are generated.
      */
-    fun generateSummaryStream(transcript: String): Flow<SummaryUpdate>
-    
-    /**
-     * Check if summary API is available
-     */
-    fun isAvailable(): Boolean
+    fun generateSummary(transcript: String): Flow<SummaryUpdate>
 }

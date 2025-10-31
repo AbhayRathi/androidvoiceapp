@@ -5,10 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.androidvoiceapp.data.repository.SummaryRepository
 import com.androidvoiceapp.data.room.SummaryEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SummaryViewModel @Inject constructor(
     private val summaryRepository: SummaryRepository

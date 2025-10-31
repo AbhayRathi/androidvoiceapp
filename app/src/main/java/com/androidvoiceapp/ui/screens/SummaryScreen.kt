@@ -220,7 +220,7 @@ fun SummaryContent(summary: com.androidvoiceapp.data.room.SummaryEntity) {
                     emptyList()
                 }
                 
-                keyPoints.forEachIndexed { index, point ->
+                keyPoints.forEachIndexed { _, point ->
                     Row(
                         modifier = Modifier.padding(vertical = 4.dp)
                     ) {
