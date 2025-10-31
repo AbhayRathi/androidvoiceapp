@@ -25,7 +25,6 @@ import com.androidvoiceapp.audio.WavWriter
 import com.androidvoiceapp.data.repository.*
 import com.androidvoiceapp.data.room.SessionStateEntity
 import com.androidvoiceapp.util.AudioFocusHelper
-import com.androidvoiceapp.util.SilenceDetector
 import com.androidvoiceapp.util.StorageChecker
 import com.androidvoiceapp.workers.FinalizeChunkWorker
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,20 +39,19 @@ class RecordingService : Service() {
         private const val TAG = "RecordingService"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "recording_channel"
-        
+
         const val ACTION_START = "action_start"
         const val ACTION_PAUSE = "action_pause"
         const val ACTION_RESUME = "action_resume"
         const val ACTION_STOP = "action_stop"
-        
+
         const val EXTRA_MEETING_ID = "meeting_id"
         const val EXTRA_MEETING_TITLE = "meeting_title"
-        
+
         private const val CHUNK_DURATION_MS = 30000L // 30 seconds
         private const val OVERLAP_DURATION_MS = 2000L // 2 seconds
         private const val SAMPLE_RATE = 16000
-        
-        // Unique request codes for PendingIntents to ensure they don't conflict
+
         private const val REQUEST_CODE_PAUSE = 1001
         private const val REQUEST_CODE_RESUME = 1002
         private const val REQUEST_CODE_STOP = 1003
@@ -61,26 +59,25 @@ class RecordingService : Service() {
 
     @Inject
     lateinit var meetingRepository: MeetingRepository
-    
+
     @Inject
     lateinit var chunkRepository: ChunkRepository
-    
+
     @Inject
     lateinit var sessionStateRepository: SessionStateRepository
-    
+
     @Inject
     lateinit var storageChecker: StorageChecker
-    
+
     @Inject
     lateinit var workManager: WorkManager
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    
+
     private var audioRecorder: AudioRecordWrapper? = null
     private var wavWriter: WavWriter? = null
     private var audioFocusHelper: AudioFocusHelper? = null
-    private var silenceDetector: SilenceDetector? = null
-    
+
     private var meetingId: Long = -1
     private var currentChunkSequence = 0
     private var isRecording = false
@@ -88,11 +85,11 @@ class RecordingService : Service() {
     private var recordingStartTime = 0L
     private var pausedDuration = 0L
     private var lastPauseTime = 0L
-    
+
     private var currentStatus = "Recording..."
     private var currentChunkFile: File? = null
     private var currentChunkStartTime = 0L
-    
+
     private var telephonyManager: TelephonyManager? = null
     private var phoneStateListener: Any? = null
     private var headsetReceiver: BroadcastReceiver? = null
@@ -100,7 +97,6 @@ class RecordingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service created")
         createNotificationChannel()
         setupPhoneStateListener()
         setupHeadsetListener()
@@ -120,31 +116,25 @@ class RecordingService : Service() {
 
     private fun handleStart(intent: Intent) {
         val title = intent.getStringExtra(EXTRA_MEETING_TITLE) ?: "Meeting"
-        
+
         serviceScope.launch {
+            if (!storageChecker.hasEnoughStorage()) {
+                Log.e(TAG, "Not enough storage to start recording.")
+                stopSelf()
+                return@launch
+            }
+
             try {
-                // Check storage
-                if (!storageChecker.hasEnoughStorage()) {
-                    currentStatus = getString(R.string.status_low_storage)
-                    stopSelf()
-                    return@launch
-                }
-                
-                // Create meeting
-                meetingId = meetingRepository.createMeeting(title)
-                Log.d(TAG, "Created meeting: $meetingId")
-                
-                // Save session state
+                val newMeetingId = meetingRepository.createMeeting(title)
+                meetingId = newMeetingId
+                Log.d(TAG, "Created meeting in database with ID: $meetingId")
+
                 saveSessionState()
-                
-                // Start foreground
                 startForeground()
-                
-                // Start recording
                 startRecording()
-                
+
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to start recording", e)
+                Log.e(TAG, "Failed to create meeting and start recording", e)
                 stopSelf()
             }
         }
@@ -183,52 +173,44 @@ class RecordingService : Service() {
     }
 
     private fun startRecording() {
+        if (meetingId == -1L) {
+            Log.e(TAG, "Cannot start recording, meetingId is invalid.")
+            return
+        }
+
         try {
-            // Initialize audio focus
             audioFocusHelper = AudioFocusHelper(this) { gained ->
                 if (gained) {
-                    if (isPaused && !isInPhoneCall) {
-                        handleResume()
-                    }
+                    if (isPaused && !isInPhoneCall) handleResume()
                 } else {
                     currentStatus = getString(R.string.status_paused_audio_focus)
                     handlePause()
                 }
             }
-            
+
             if (!audioFocusHelper!!.requestAudioFocus()) {
                 Log.e(TAG, "Failed to gain audio focus")
                 return
             }
-            
-            // Initialize components
-            silenceDetector = SilenceDetector()
+
             audioRecorder = AudioRecordWrapper()
-            
             if (!audioRecorder!!.start()) {
                 Log.e(TAG, "Failed to start AudioRecord")
                 return
             }
-            
+
             isRecording = true
             isPaused = false
             recordingStartTime = System.currentTimeMillis()
             currentStatus = getString(R.string.status_recording)
-            
-            // Start recording loop
-            serviceScope.launch {
-                recordingLoop()
-            }
-            
-            // Start timer update
-            serviceScope.launch {
-                updateTimer()
-            }
-            
+
+            serviceScope.launch { recordingLoop() }
+            serviceScope.launch { updateTimer() }
+
             updateNotification()
-            
+
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start recording", e)
+            Log.e(TAG, "Exception in startRecording", e)
         }
     }
 
@@ -238,56 +220,38 @@ class RecordingService : Service() {
                 delay(100)
                 continue
             }
-            
+
             try {
-                // Check storage periodically
                 if (!storageChecker.hasEnoughStorage()) {
                     currentStatus = getString(R.string.status_low_storage)
-                    withContext(Dispatchers.Main) {
-                        updateNotification()
-                    }
+                    withContext(Dispatchers.Main) { updateNotification() }
                     stopRecording()
                     break
                 }
-                
-                // Start new chunk
+
                 startNewChunk()
-                
+
                 val chunkStartTime = System.currentTimeMillis()
                 val buffer = ShortArray(audioRecorder!!.getBufferSize())
-                
-                // Record for CHUNK_DURATION_MS
+
                 while (isRecording && !isPaused) {
                     val elapsed = System.currentTimeMillis() - chunkStartTime
-                    if (elapsed >= CHUNK_DURATION_MS) {
-                        break
-                    }
-                    
+                    if (elapsed >= CHUNK_DURATION_MS) break
+
                     val samplesRead = audioRecorder!!.read(buffer)
                     if (samplesRead > 0) {
                         wavWriter?.write(buffer, samplesRead)
-                        
-                        // Check for silence
-                        if (silenceDetector?.processSamples(buffer) == true) {
-                            currentStatus = getString(R.string.status_no_audio)
-                            withContext(Dispatchers.Main) {
-                                updateNotification()
-                            }
-                        }
                     }
-                    
-                    delay(10) // Small delay to prevent busy loop
+
+                    delay(10) // Prevent busy loop
                 }
-                
-                // Finalize chunk
+
                 finalizeCurrentChunk()
-                
-                // Handle overlap: continue recording for OVERLAP_DURATION_MS
-                // The next chunk will include this overlap
+
                 if (isRecording && !isPaused) {
                     delay(OVERLAP_DURATION_MS)
                 }
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error in recording loop", e)
                 break
@@ -298,36 +262,33 @@ class RecordingService : Service() {
     private suspend fun startNewChunk() {
         val audioDir = File(getExternalFilesDir(null), "audio")
         audioDir.mkdirs()
-        
+
         currentChunkFile = File(audioDir, "meeting_${meetingId}_chunk_${currentChunkSequence}.wav.tmp")
         currentChunkStartTime = System.currentTimeMillis() - recordingStartTime - pausedDuration
-        
+
         wavWriter = WavWriter(currentChunkFile!!, SAMPLE_RATE)
         wavWriter?.open()
-        
-        Log.d(TAG, "Started chunk $currentChunkSequence")
     }
 
     private suspend fun finalizeCurrentChunk() {
+        if (wavWriter == null || currentChunkFile == null) return
+
         try {
             wavWriter?.close()
             wavWriter = null
-            
+
             val finalFile = File(currentChunkFile!!.absolutePath.removeSuffix(".tmp"))
             currentChunkFile?.renameTo(finalFile)
-            
-            val duration = CHUNK_DURATION_MS
+
             val chunkId = chunkRepository.createChunk(
                 meetingId = meetingId,
                 sequenceNumber = currentChunkSequence,
                 filePath = finalFile.absolutePath,
-                duration = duration,
+                duration = CHUNK_DURATION_MS,
                 startTime = currentChunkStartTime
             )
-            
-            Log.d(TAG, "Finalized chunk $currentChunkSequence with ID $chunkId")
-            
-            // Enqueue finalize worker
+
+            // **CRITICAL FIX: Pass both meetingId and chunkId to the worker**
             val workRequest = OneTimeWorkRequestBuilder<FinalizeChunkWorker>()
                 .setInputData(
                     workDataOf(
@@ -336,16 +297,16 @@ class RecordingService : Service() {
                     )
                 )
                 .build()
-            
+
             workManager.enqueueUniqueWork(
                 "finalize_chunk_${chunkId}",
                 ExistingWorkPolicy.KEEP,
                 workRequest
             )
-            
+
             currentChunkSequence++
             saveSessionState()
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to finalize chunk", e)
         }
@@ -354,9 +315,7 @@ class RecordingService : Service() {
     private fun pauseRecording() {
         isPaused = true
         lastPauseTime = System.currentTimeMillis()
-        serviceScope.launch {
-            saveSessionState()
-        }
+        serviceScope.launch { saveSessionState() }
         updateNotification()
     }
 
@@ -365,10 +324,7 @@ class RecordingService : Service() {
             isPaused = false
             pausedDuration += System.currentTimeMillis() - lastPauseTime
             currentStatus = getString(R.string.status_recording)
-            silenceDetector?.reset()
-            serviceScope.launch {
-                saveSessionState()
-            }
+            serviceScope.launch { saveSessionState() }
             updateNotification()
         }
     }
@@ -376,36 +332,29 @@ class RecordingService : Service() {
     private suspend fun stopRecording() {
         isRecording = false
         isPaused = false
-        
+
         try {
-            // Finalize any current chunk
-            if (currentChunkFile != null && currentChunkFile!!.exists()) {
-                finalizeCurrentChunk()
-            }
-            
-            // Stop audio
+            finalizeCurrentChunk()
+
             audioRecorder?.stop()
             audioRecorder?.release()
             audioRecorder = null
-            
-            // Release audio focus
+
             audioFocusHelper?.abandonAudioFocus()
             audioFocusHelper = null
-            
-            // Update meeting
+
             meetingRepository.endMeeting(meetingId)
-            
-            // Clear session state
             sessionStateRepository.deleteSessionState(meetingId)
-            
+
             currentStatus = getString(R.string.status_stopped)
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping recording", e)
         }
     }
 
     private suspend fun saveSessionState() {
+        if (meetingId == -1L) return
         try {
             val state = SessionStateEntity(
                 meetingId = meetingId,
@@ -442,17 +391,12 @@ class RecordingService : Service() {
                 description = getString(R.string.notification_channel_description)
                 setSound(null, null)
             }
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
     private fun createNotification(): Notification {
-        val elapsedTime = if (isRecording) {
-            (System.currentTimeMillis() - recordingStartTime - pausedDuration) / 1000
-        } else {
-            0
-        }
+        val elapsedTime = if (isRecording) (System.currentTimeMillis() - recordingStartTime - pausedDuration) / 1000 else 0
         val minutes = elapsedTime / 60
         val seconds = elapsedTime % 60
         val timerText = String.format("%02d:%02d", minutes, seconds)
@@ -465,63 +409,34 @@ class RecordingService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
-        // Add actions based on state
         if (isPaused) {
-            val resumeIntent = Intent(this, RecordingService::class.java).apply {
-                action = ACTION_RESUME
-                putExtra(EXTRA_MEETING_ID, meetingId)
-            }
-            val resumePendingIntent = PendingIntent.getService(
-                this, REQUEST_CODE_RESUME, resumeIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+            val resumeIntent = Intent(this, RecordingService::class.java).apply { action = ACTION_RESUME }
+            val resumePendingIntent = PendingIntent.getService(this, REQUEST_CODE_RESUME, resumeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             builder.addAction(0, getString(R.string.notification_action_resume), resumePendingIntent)
         } else if (isRecording) {
-            val pauseIntent = Intent(this, RecordingService::class.java).apply {
-                action = ACTION_PAUSE
-                putExtra(EXTRA_MEETING_ID, meetingId)
-            }
-            val pausePendingIntent = PendingIntent.getService(
-                this, REQUEST_CODE_PAUSE, pauseIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+            val pauseIntent = Intent(this, RecordingService::class.java).apply { action = ACTION_PAUSE }
+            val pausePendingIntent = PendingIntent.getService(this, REQUEST_CODE_PAUSE, pauseIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             builder.addAction(0, getString(R.string.notification_action_pause), pausePendingIntent)
         }
 
-        val stopIntent = Intent(this, RecordingService::class.java).apply {
-            action = ACTION_STOP
-            putExtra(EXTRA_MEETING_ID, meetingId)
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this, REQUEST_CODE_STOP, stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val stopIntent = Intent(this, RecordingService::class.java).apply { action = ACTION_STOP }
+        val stopPendingIntent = PendingIntent.getService(this, REQUEST_CODE_STOP, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         builder.addAction(0, getString(R.string.notification_action_stop), stopPendingIntent)
 
         return builder.build()
     }
 
     private fun updateNotification() {
-        val notification = createNotification()
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, createNotification())
     }
 
     private fun setupPhoneStateListener() {
         telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_PHONE_STATE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
-                override fun onCallStateChanged(state: Int) {
-                    handlePhoneStateChange(state)
-                }
+                override fun onCallStateChanged(state: Int) = handlePhoneStateChange(state)
             }
             phoneStateListener = callback
             telephonyManager?.registerTelephonyCallback(mainExecutor, callback)
@@ -529,9 +444,7 @@ class RecordingService : Service() {
             @Suppress("DEPRECATION")
             val listener = object : PhoneStateListener() {
                 @Deprecated("Deprecated in Java")
-                override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-                    handlePhoneStateChange(state)
-                }
+                override fun onCallStateChanged(state: Int, phoneNumber: String?) = handlePhoneStateChange(state)
             }
             phoneStateListener = listener
             telephonyManager?.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
@@ -540,9 +453,7 @@ class RecordingService : Service() {
 
     private fun handlePhoneStateChange(state: Int) {
         when (state) {
-            TelephonyManager.CALL_STATE_RINGING,
-            TelephonyManager.CALL_STATE_OFFHOOK -> {
-                // Phone call started
+            TelephonyManager.CALL_STATE_RINGING, TelephonyManager.CALL_STATE_OFFHOOK -> {
                 if (isRecording && !isPaused) {
                     isInPhoneCall = true
                     currentStatus = getString(R.string.status_paused_phone_call)
@@ -550,12 +461,9 @@ class RecordingService : Service() {
                 }
             }
             TelephonyManager.CALL_STATE_IDLE -> {
-                // Phone call ended
                 if (isInPhoneCall) {
                     isInPhoneCall = false
-                    if (isPaused) {
-                        handleResume()
-                    }
+                    if (isPaused) handleResume()
                 }
             }
         }
@@ -567,56 +475,42 @@ class RecordingService : Service() {
             addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
             addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
         }
-        
+
         headsetReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 Log.d(TAG, "Headset change detected: ${intent?.action}")
-                // Show notification about headset change
                 showHeadsetChangeNotification()
             }
         }
-        
+
         registerReceiver(headsetReceiver, filter)
     }
 
     private fun showHeadsetChangeNotification() {
-        // Just log for now, could show a Toast or separate notification
         Log.d(TAG, getString(R.string.notification_headset_changed))
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "Service destroyed")
-        
+
         serviceScope.launch {
-            // Handle process death - finalize current chunk
             if (isRecording && currentChunkFile != null) {
-                try {
-                    finalizeCurrentChunk()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to finalize chunk on destroy", e)
-                }
+                finalizeCurrentChunk()
             }
         }
-        
-        // Cleanup
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                (phoneStateListener as? TelephonyCallback)?.let {
-                    telephonyManager?.unregisterTelephonyCallback(it)
-                }
+                (phoneStateListener as? TelephonyCallback)?.let { telephonyManager?.unregisterTelephonyCallback(it) }
             } else {
                 @Suppress("DEPRECATION")
-                (phoneStateListener as? PhoneStateListener)?.let {
-                    telephonyManager?.listen(it, PhoneStateListener.LISTEN_NONE)
-                }
+                (phoneStateListener as? PhoneStateListener)?.let { telephonyManager?.listen(it, PhoneStateListener.LISTEN_NONE) }
             }
-            
             headsetReceiver?.let { unregisterReceiver(it) }
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }
-        
+
         serviceScope.cancel()
     }
 }

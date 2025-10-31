@@ -1,5 +1,6 @@
 package com.androidvoiceapp.api
 
+import android.util.Log
 import com.androidvoiceapp.data.room.TranscriptSegmentEntity
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
@@ -13,6 +14,7 @@ import javax.inject.Singleton
 class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
 
     companion object {
+        private const val TAG = "GeminiTranscriptionApi"
         // This should be loaded from a secure place, but using the provided key for now.
         private const val API_KEY = "AIzaSyB_JY45L0dBPrWrKqu-bGDMe7U0Dad97wE"
     }
@@ -32,14 +34,15 @@ class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
         try {
             val response = generativeModel.generateContent(
                 content {
-                    // The Gemini 1.5 API supports direct file uploads.
-                    // For this use case, we send the prompt and the file data.
                     text("Transcribe this audio file.")
                     blob("audio/wav", chunkFile.readBytes())
                 }
             )
 
-            val transcribedText = response.text ?: ""
+            val transcribedText = response.text
+            if (transcribedText.isNullOrBlank()) {
+                throw Exception("Gemini API returned an empty or null response. Check API key, billing, and API enablement.")
+            }
 
             val segment = TranscriptSegmentEntity(
                 meetingId = meetingId,
@@ -51,8 +54,8 @@ class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
             )
             listOf(segment)
         } catch (e: Exception) {
-            // Log the exception
-            emptyList()
+            Log.e(TAG, "Gemini API Error for chunk $chunkId: ${e.message}", e)
+            throw e
         }
     }
 
