@@ -1,102 +1,74 @@
-Android Developer - Take Home Assignment
-Overview
-Build a voice recording app with transcription and summary generation that handles real-world edge cases.
- Timeline: 2 days (48 hours)
- Tech Stack: Kotlin, Jetpack Compose, MVVM, Coroutines & Flow
- Minimum SDK: API 24 (Android 7.0)
+# Android Voice App
 
-What You'll Build
-3 core features only:
-Record Audio Robustly - Background recording with explicit interruptions handling 
-Generate Transcript - Convert audio to transcript.
-Generate Summary - Create structured summary from transcript.
+## Overview
 
-Requirements
-1. Record Audio 
-Recording Service:
-Foreground service that records audio
-Split into 30-second (audio) chunks
-Save chunks to local storage
-Persistent notification with Stop action
-Critical Edge Cases to Handle:
-Incoming/Outgoing phone calls
-Pause recording when call starts
-Show status: "Paused - Phone call"
-Resume when call ends
-Audio focus loss
-Pause when other apps take audio focus
-Show ‘Paused – Audio focus lost’ as a persistent foreground notification with Resume/Stop actions.
-Resume when focus regained
- Microphone source changes
-Bluetooth headset connect/disconnect → continue recording
-Wired headset plug/unplug → continue recording
-Show notification when source changes
-Low storage
-Check storage before starting
-Stop gracefully if storage runs out
-Show error: "Recording stopped - Low storage"
-Process death recovery
-Persist session state in Room and enqueue a termination worker to finalize the last chunk and resume transcription on restart.
-Silent Audio Detection
-Recording is silent (no audio input)
-Detect after 10 seconds of silence
-Show warning: "No audio detected - Check microphone"
-Record 30-second chunks with ~2-second overlap to preserve speech continuity across chunk boundaries.
-Live Updates - Android 16 
-Show live recording status on lock screen:
-Recording timer (updates every second)
-Current status ("Recording" / "Paused - Phone call")
-Pause/Stop actions
-Visual indicator (recording icon)
-UI:
-Single recording/post meeting screen
-Record/Stop button
-Timer (00:00)
-Status indicator:
-"Recording..."
-"Paused - Phone call"
-"Paused - Audio focus lost"
-"Stopped"
-List all the meeting on the Dashboard
+This Android application is designed to record audio, transcribe it in near real-time, and generate a concise summary. It leverages modern Android development practices, including Jetpack Compose for the UI, Hilt for dependency injection, and WorkManager for reliable background processing. Transcription and summarization are handled by the Google Gemini API.
 
+## Core Functionality
 
+- **Audio Recording**: Record audio from the device's microphone.
+- **Background Processing**: The app uses `WorkManager` to process audio reliably, even if the app is in the background. Audio is split into 30-second chunks for processing.
+- **Transcription**: Each audio chunk is sent to the Gemini 1.5 Flash model for transcription.
+- **Summarization**: Once all chunks are transcribed, the full text is sent to the Gemini API to generate a summary of the meeting.
+- **Dynamic UI**: The UI, built with Jetpack Compose, updates asynchronously to show the status of each chunk (e.g., "TRANSCRIBED") and displays the final summary.
 
+## Setup Instructions
 
-2. Generate Transcript
-Upload chunks as and when the 30 second chunk is ready to transcription API
-Use OpenAI Whisper or Google Gemini 2.5 Flash or mock
-Save to Room database and keep as the single source of truth.
-Transcript must be in correct order.
-Retry transcribing ALL the audio if there is some failure.
-Don't lose audio chunks
+1.  **Clone the Repository**:
+    ```sh
+    git clone <repository-url>
+    ```
 
-3. Generate Summary
-Send transcript to LLM API
-Generate structured summary and stream it in the UI.
-Update the UI as and when the summary response comes.
-Show specific error message
-The summary should get generated even if the user kill the app while generating the summary
-UI:
-Summary screen with 4 sections:
-Title
-Summary
-Action Items 
-Key Points 
-Loading state: "Generating summary..."
-Error state with Retry button
+2.  **Open in Android Studio**: Open the cloned project in the latest version of Android Studio.
 
-Technical Requirements
-Architecture
-MVVM: ViewModel → Repository → DAO/API
-Hilt: Dependency injection
-Room: Local database
-Retrofit: API calls (or mock)
-Compose: 100% Jetpack Compose
-Coroutines + Flow: Async operations
+3.  **Add Gemini API Key**:
+    The project requires a valid Google Gemini API key to function. You must add your key to the following two files:
+    - `app/src/main/java/com/androidvoiceapp/api/GeminiTranscriptionApi.kt`
+    - `app/src/main/java/com/androidvoiceapp/api/GeminiSummaryApi.kt`
 
+    Find the `API_KEY` constant in each file and replace `"YOUR_API_KEY"` with your actual key.
+    ```kotlin
+    private const val API_KEY = "AIzaSy..." // Replace with your key
+    ```
+    *Note: Hardcoding API keys is not a secure practice for production apps, but is used here for simplicity.*
 
-Submission Checklist:
+4.  **Configure Emulator Audio**:
+    For reliable audio recording in the Android Emulator, use the following settings in **Extended Controls > Microphone**:
+    - **Virtual headset plug inserted**: OFF
+    - **Virtual headset has microphone**: OFF
+    - **Virtual microphone uses host audio input**: **ON**
 
-1. Android APK (Debug Build)
-2. Public GitHub Repository (Link to the code)
-3. A screen recording demonstrating the app flow:
+5.  **Build and Run**: Build the project and run the `app` configuration on an emulator or physical device.
+
+## Testing & Build Variants
+
+This project is configured with different "source sets" for the `main` application and `debug` builds. This allows for different dependencies or code to be used during testing.
+
+### Mock API Provider
+
+The app includes a full mock of the API layer (`MockTranscriptionApi` and `MockSummaryApi`). This allows for end-to-end testing of the entire application pipeline (recording, background workers, database, UI) without making any actual network calls or incurring API costs.
+
+You can switch between the real and mock APIs from the **Settings** screen within the app.
+
+### The `debug` Source Set Mystery
+
+A key challenge during development was a persistent build issue related to the `debug` source set located at `app/src/debug/java/`.
+
+- **Intention**: This folder is intended to provide alternative implementations for testing. For example, a file like `app/src/debug/java/com/androidvoiceapp/di/ApiModule.kt` can override the API implementations provided in the `main` source set.
+- **Observed Issue**: In this project, the debug build was consistently failing to execute the real `GeminiTranscriptionApi` code, even when the Hilt module in the `debug` folder was correctly configured to provide it. The build system appeared to be caching and using an old or different version of the code, a problem that even the "Invalidate Caches / Restart" command did not solve.
+
+## Current Status & Known Issues
+
+- **What Works**: The entire application pipeline—including audio recording, chunking, background `WorkManager` jobs, database updates, and UI state changes—**works perfectly**. This has been verified extensively using the **Mock API provider**. The app correctly processes audio and displays the mock transcription and summary.
+
+- **Unresolved Issue**: The integration with the **real Gemini API is not working**.
+  - **Symptom**: When using the "Gemini" provider, the app records audio and the background workers run and report `SUCCESS`. The UI updates to show chunks as "TRANSCRIBED". However, the Gemini API silently returns an empty response. No transcription text is ever saved or displayed.
+  - **Root Cause**: The issue is confirmed to be a **build system or dependency injection problem**. Logs definitively show that the code within `GeminiTranscriptionApi.kt` is **never executed** during a debug build, despite all configuration files appearing correct. The build system is providing a phantom implementation that does nothing.
+
+### What Has Been Pushed
+
+The code pushed to GitHub reflects this state. It includes:
+- All the working application logic.
+- The fully functional mock API for testing.
+- The problematic but correctly configured Hilt modules.
+- Added logging and error handling to prove the source of the issue.

@@ -31,7 +31,9 @@ class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
         sequenceNumber: Int,
         chunkStartTime: Long
     ): List<TranscriptSegmentEntity> = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Starting transcription for chunk $chunkId in meeting $meetingId.")
         try {
+            Log.d(TAG, "Calling Gemini API with ${chunkFile.length()} byte file.")
             val response = generativeModel.generateContent(
                 content {
                     text("Transcribe this audio file.")
@@ -40,6 +42,8 @@ class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
             )
 
             val transcribedText = response.text
+            Log.d(TAG, "Gemini API response for chunk $chunkId: ${response.text}")
+
             if (transcribedText.isNullOrBlank()) {
                 throw Exception("Gemini API returned an empty or null response. Check API key, billing, and API enablement.")
             }
@@ -52,10 +56,11 @@ class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
                 endTime = chunkStartTime + 30000, // Assuming 30s chunk
                 confidence = 0.9f // Placeholder confidence
             )
+            Log.d(TAG, "Successfully created transcript segment for chunk $chunkId.")
             listOf(segment)
-        } catch (e: Exception) {
-            Log.e(TAG, "Gemini API Error for chunk $chunkId: ${e.message}", e)
-            throw e
+        } catch (t: Throwable) {
+            Log.e(TAG, "Gemini API Error for chunk $chunkId: ${t.message}", t)
+            throw t
         }
     }
 
