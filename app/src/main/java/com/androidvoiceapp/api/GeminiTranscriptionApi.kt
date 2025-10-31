@@ -13,6 +13,7 @@ import javax.inject.Singleton
 class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
 
     companion object {
+        // This should be loaded from a secure place, but using the provided key for now.
         private const val API_KEY = "AIzaSyB_JY45L0dBPrWrKqu-bGDMe7U0Dad97wE"
     }
 
@@ -29,14 +30,14 @@ class GeminiTranscriptionApi @Inject constructor() : TranscriptionApi {
         chunkStartTime: Long
     ): List<TranscriptSegmentEntity> = withContext(Dispatchers.IO) {
         try {
-            val audioBytes = chunkFile.readBytes()
-
-            val inputContent = content {
-                audio(audioBytes)
-                text("Transcribe this audio chunk. Provide only the transcribed text.")
-            }
-
-            val response = generativeModel.generateContent(inputContent)
+            val response = generativeModel.generateContent(
+                content {
+                    // The Gemini 1.5 API supports direct file uploads.
+                    // For this use case, we send the prompt and the file data.
+                    text("Transcribe this audio file.")
+                    blob("audio/wav", chunkFile.readBytes())
+                }
+            )
 
             val transcribedText = response.text ?: ""
 

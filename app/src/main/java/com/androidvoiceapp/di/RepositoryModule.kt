@@ -40,4 +40,10 @@ abstract class RepositoryModule {
     abstract fun bindSessionStateRepository(
         impl: SessionStateRepositoryImpl
     ): SessionStateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSettingsRepository(
+        impl: SettingsRepositoryImpl
+    ): SettingsRepository
 }

@@ -12,6 +12,8 @@ import com.androidvoiceapp.data.room.SummaryEntity
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 @HiltWorker
@@ -98,8 +100,8 @@ class SummaryWorker @AssistedInject constructor(
                 meetingId = meetingId,
                 title = parsedSummary.title,
                 summary = parsedSummary.summary,
-                actionItems = json.encodeToString(parsedSummary.actionItems),
-                keyPoints = json.encodeToString(parsedSummary.keyPoints),
+                actionItems = json.encodeToString(ListSerializer(String.serializer()), parsedSummary.actionItems),
+                keyPoints = json.encodeToString(ListSerializer(String.serializer()), parsedSummary.keyPoints),
                 progress = 1.0f,
                 status = "completed"
             )
