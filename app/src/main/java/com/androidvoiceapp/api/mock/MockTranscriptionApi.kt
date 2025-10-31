@@ -1,6 +1,7 @@
 package com.androidvoiceapp.api.mock
 
 import android.util.Log
+import com.androidvoiceapp.api.TranscriptionApi
 import com.androidvoiceapp.data.room.TranscriptSegmentEntity
 import kotlinx.coroutines.delay
 import java.io.File
@@ -12,7 +13,7 @@ import javax.inject.Singleton
  * Returns deterministic transcripts based on chunk sequence
  */
 @Singleton
-class MockTranscriptionApi @Inject constructor() {
+class MockTranscriptionApi @Inject constructor() : TranscriptionApi {
     
     companion object {
         private const val TAG = "MockTranscriptionApi"
@@ -29,16 +30,7 @@ class MockTranscriptionApi @Inject constructor() {
         )
     }
     
-    /**
-     * Transcribe audio chunk (mock implementation)
-     * @param chunkFile The WAV file to transcribe
-     * @param meetingId The meeting ID
-     * @param chunkId The chunk ID
-     * @param sequenceNumber The sequence number of the chunk
-     * @param chunkStartTime The start time of this chunk in the meeting (ms)
-     * @return List of transcript segments
-     */
-    suspend fun transcribe(
+    override suspend fun transcribe(
         chunkFile: File,
         meetingId: Long,
         chunkId: Long,
@@ -69,8 +61,5 @@ class MockTranscriptionApi @Inject constructor() {
         return listOf(segment)
     }
     
-    /**
-     * Check if transcription is available (always true for mock)
-     */
-    fun isAvailable(): Boolean = true
+    override fun isAvailable(): Boolean = true
 }

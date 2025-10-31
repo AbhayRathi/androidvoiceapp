@@ -27,15 +27,16 @@ class FinalizeChunkWorker @AssistedInject constructor(
         val chunkId = inputData.getLong("chunk_id", -1L)
 
         if (meetingId == -1L || chunkId == -1L) {
-            Log.e(TAG, "Invalid input data")
+            Log.e(TAG, "Invalid input data: meetingId=$meetingId, chunkId=$chunkId")
             return Result.failure()
         }
 
         return try {
-            Log.d(TAG, "Finalizing chunk $chunkId for meeting $meetingId")
+            Log.d(TAG, "Starting chunk finalization: meetingId=$meetingId, chunkId=$chunkId, workerId=$id")
 
             // Update chunk status to finalized
             chunkRepository.updateChunkStatus(chunkId, "finalized")
+            Log.d(TAG, "Chunk status updated to 'finalized': chunkId=$chunkId")
 
             // Enqueue transcription worker
             val transcriptionWorkRequest = OneTimeWorkRequestBuilder<TranscriptionWorker>()
@@ -59,11 +60,11 @@ class FinalizeChunkWorker @AssistedInject constructor(
                     transcriptionWorkRequest
                 )
 
-            Log.d(TAG, "Chunk $chunkId finalized and transcription enqueued")
+            Log.d(TAG, "Transcription worker enqueued: chunkId=$chunkId, workRequestId=${transcriptionWorkRequest.id}")
             Result.success()
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to finalize chunk $chunkId", e)
+            Log.e(TAG, "Failed to finalize chunk: chunkId=$chunkId, error=${e.message}", e)
             Result.retry()
         }
     }
