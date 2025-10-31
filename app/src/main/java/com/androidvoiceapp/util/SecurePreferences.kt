@@ -83,7 +83,7 @@ class SecurePreferences @Inject constructor(
                 .putString(KEY_PROVIDER, provider)
                 .putString(KEY_API_KEY, apiKey)
                 .apply()
-            Log.d(TAG, "Settings saved: provider=$provider, hasKey=${apiKey.isNotEmpty()}")
+            Log.d(TAG, "Settings saved successfully: provider=$provider")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save settings", e)
         }

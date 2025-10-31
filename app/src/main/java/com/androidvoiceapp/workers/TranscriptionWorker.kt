@@ -15,6 +15,10 @@ import java.io.File
 /**
  * Worker to transcribe audio chunks
  * Implements retry logic and ensures transcripts are in correct order
+ * 
+ * Note: Logs include meetingId and chunkId for debugging. In production,
+ * consider using a debug flag to control log verbosity or hash these IDs
+ * if they are considered sensitive.
  */
 @HiltWorker
 class TranscriptionWorker @AssistedInject constructor(

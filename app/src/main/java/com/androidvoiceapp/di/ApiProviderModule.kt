@@ -24,16 +24,22 @@ object ApiProviderModule {
      * To use real APIs, update this to:
      * 1. Check encrypted preferences for API key and provider selection
      * 2. Return real implementation if key exists, otherwise Mock
+     * 
+     * Example when real API is ready:
+     * @Provides
+     * @Singleton
+     * fun provideTranscriptionApi(
+     *     @MockApi mockApi: TranscriptionApi,
+     *     @ProductionApi realApi: TranscriptionApi?
+     * ): TranscriptionApi = realApi ?: mockApi
      */
     @Provides
     @Singleton
     fun provideTranscriptionApi(
         @MockApi mockApi: TranscriptionApi
-        // @ProductionApi realApi: TranscriptionApi? // Uncomment when real API is ready
     ): TranscriptionApi {
         // For now, always return Mock
         // TODO: Add logic to switch between Mock and Production based on settings
-        // return realApi ?: mockApi
         return mockApi
     }
     
@@ -44,16 +50,22 @@ object ApiProviderModule {
      * To use real APIs, update this to:
      * 1. Check encrypted preferences for API key and provider selection
      * 2. Return real implementation if key exists, otherwise Mock
+     * 
+     * Example when real API is ready:
+     * @Provides
+     * @Singleton
+     * fun provideSummaryApi(
+     *     @MockApi mockApi: SummaryApi,
+     *     @ProductionApi realApi: SummaryApi?
+     * ): SummaryApi = realApi ?: mockApi
      */
     @Provides
     @Singleton
     fun provideSummaryApi(
         @MockApi mockApi: SummaryApi
-        // @ProductionApi realApi: SummaryApi? // Uncomment when real API is ready
     ): SummaryApi {
         // For now, always return Mock
         // TODO: Add logic to switch between Mock and Production based on settings
-        // return realApi ?: mockApi
         return mockApi
     }
 }
